@@ -41,6 +41,3 @@ To remove build artifacts created by Cargo:
 ```powershell
 cargo clean
 ```
-
-License
-- MIT / Apache-2.0 (choose as you prefer)
