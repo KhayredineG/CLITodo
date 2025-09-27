@@ -59,9 +59,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
                     KeyCode::Down => app.next(),
                     KeyCode::Up => app.previous(),
                     KeyCode::Enter => app.toggle_completed(),
-                    KeyCode::Char('a') => {
-                        app.mode = AppMode::Insert;
-                    }
+                    KeyCode::Char('a') => app.mode = AppMode::Insert,
                     KeyCode::Char('d') => app.delete_task(),
                     KeyCode::Char('+') => app.zoom_in(),
                     KeyCode::Char('-') => app.zoom_out(),
@@ -69,15 +67,11 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
                 },
                 AppMode::Insert => match key.code {
                     KeyCode::Enter => app.add_task(),
-                    KeyCode::Char(c) => {
-                        app.input.push(c);
-                    }
+                    KeyCode::Char(c) => app.input.push(c),
                     KeyCode::Backspace => {
                         app.input.pop();
                     }
-                    KeyCode::Esc => {
-                        app.mode = AppMode::Normal;
-                    }
+                    KeyCode::Esc => app.mode = AppMode::Normal,
                     _ => {}
                 },
             }

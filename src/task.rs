@@ -11,13 +11,9 @@ pub struct Task {
 }
 
 pub fn load_tasks<P: AsRef<Path>>(path: P) -> io::Result<Vec<Task>> {
-    if !path.as_ref().exists() {
-        return Ok(Vec::new());
-    }
-    let file = File::open(path)?;
-    let reader = BufReader::new(file);
-    let tasks = serde_json::from_reader(reader).unwrap_or_else(|_| Vec::new());
-    Ok(tasks)
+    File::open(path).map(BufReader::new).and_then(|reader| {
+        serde_json::from_reader(reader).map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+    }).or_else(|_| Ok(Vec::new()))
 }
 
 pub fn save_tasks<P: AsRef<Path>>(path: P, tasks: &[Task]) -> io::Result<()> {

@@ -59,27 +59,17 @@ pub fn ui<B: Backend>(f: &mut Frame, app: &mut App) {
 }
 
 fn render_tasks(f: &mut Frame, app: &mut App, area: Rect) {
-    let items: Vec<ListItem> = app
-        .tasks
-        .iter()
-        .map(|task| {
-            let (style, symbol) = if task.completed {
-                (
-                    Style::default().fg(SURFACE2).add_modifier(Modifier::CROSSED_OUT),
-                    " ✔ ",
-                )
-            } else {
-                (Style::default().fg(TEXT), " ❯ ")
-            };
-
-            let content = Line::from(vec![
-                Span::styled(symbol, Style::default().fg(MAUVE)),
-                Span::raw(task.description.clone()),
-            ]);
-
-            ListItem::new(content).style(style)
-        })
-        .collect();
+    let items: Vec<ListItem> = app.tasks.iter().map(|task| {
+        let (style, symbol) = if task.completed {
+            (Style::default().fg(SURFACE2).add_modifier(Modifier::CROSSED_OUT), " ✔ ")
+        } else {
+            (Style::default().fg(TEXT), " ❯ ")
+        };
+        ListItem::new(Line::from(vec![
+            Span::styled(symbol, Style::default().fg(MAUVE)),
+            Span::raw(task.description.clone()),
+        ])).style(style)
+    }).collect();
 
     let list = List::new(items)
         .block(
@@ -95,7 +85,7 @@ fn render_tasks(f: &mut Frame, app: &mut App, area: Rect) {
                 .fg(LAVENDER)
                 .add_modifier(Modifier::BOLD),
         )
-        .highlight_symbol(" שׂ ");
+        .highlight_symbol(" ➤ ");
 
     f.render_stateful_widget(list, area, &mut app.state);
 }
@@ -104,22 +94,29 @@ fn render_footer(f: &mut Frame, area: Rect) {
     let key_style = Style::default().fg(MAUVE).add_modifier(Modifier::BOLD);
     let desc_style = Style::default().fg(SUBTEXT1);
 
-    let help_spans = Line::from(vec![
-        Span::styled("q", key_style),
-        Span::styled(":quit ", desc_style),
-        Span::styled("a", key_style),
-        Span::styled(":add ", desc_style),
-        Span::styled("d", key_style),
-        Span::styled(":delete ", desc_style),
-        Span::styled("+/-", key_style),
-        Span::styled(":zoom", desc_style),
-    ]);
+    macro_rules! key {
+        ($key:expr, $desc:expr) => {
+            vec![Span::styled($key, key_style), Span::styled($desc, desc_style)]
+        };
+    }
 
-    let help = Paragraph::new(help_spans)
-        .block(Block::default().borders(Borders::ALL)
-        .border_style(Style::default().fg(SURFACE1))
-        .title(" Controls ")
-        .title_style(Style::default().fg(LAVENDER)));
+    let help_spans = Line::from(
+        key!("q", ":quit ")
+            .into_iter()
+            .chain(key!("a", ":add "))
+            .chain(key!("d", ":delete "))
+            .chain(key!("+", ":zoom-in "))
+            .chain(key!("-", ":zoom-out"))
+            .collect::<Vec<_>>(),
+    );
+
+    let help = Paragraph::new(help_spans).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(SURFACE1))
+            .title(" Controls ")
+            .title_style(Style::default().fg(LAVENDER)),
+    );
 
     f.render_widget(help, area);
 }

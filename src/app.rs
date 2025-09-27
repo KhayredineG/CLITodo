@@ -45,16 +45,7 @@ impl App {
         if self.tasks.is_empty() {
             return;
         }
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i >= self.tasks.len() - 1 {
-                    0
-                } else {
-                    i + 1
-                }
-            }
-            None => 0,
-        };
+        let i = self.state.selected().map_or(0, |i| (i + 1) % self.tasks.len());
         self.state.select(Some(i));
     }
 
@@ -62,24 +53,13 @@ impl App {
         if self.tasks.is_empty() {
             return;
         }
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i == 0 {
-                    self.tasks.len() - 1
-                } else {
-                    i - 1
-                }
-            }
-            None => 0,
-        };
+        let i = self.state.selected().map_or(0, |i| (i + self.tasks.len() - 1) % self.tasks.len());
         self.state.select(Some(i));
     }
 
     pub fn toggle_completed(&mut self) {
-        if let Some(i) = self.state.selected() {
-            if let Some(task) = self.tasks.get_mut(i) {
-                task.completed = !task.completed;
-            }
+        if let Some(task) = self.state.selected().and_then(|i| self.tasks.get_mut(i)) {
+            task.completed = !task.completed;
         }
     }
 
@@ -101,10 +81,10 @@ impl App {
     pub fn delete_task(&mut self) {
         if let Some(i) = self.state.selected() {
             self.tasks.remove(i);
-            if self.tasks.is_empty() {
+            if !self.tasks.is_empty() {
+                self.state.select(Some(i.min(self.tasks.len() - 1)));
+            } else {
                 self.state.select(None);
-            } else if i >= self.tasks.len() {
-                self.state.select(Some(self.tasks.len() - 1));
             }
         }
     }
