@@ -2,6 +2,16 @@
   {
     "id": 1,
     "description": "Buy milk",
-    "completed": true
+    "completed": false
+  },
+  {
+    "id": 2,
+    "description": "Buy milk",
+    "completed": false
+  },
+  {
+    "id": 3,
+    "description": "Buy salami",
+    "completed": false
   }
 ]
