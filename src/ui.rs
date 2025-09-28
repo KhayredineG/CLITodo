@@ -64,11 +64,15 @@ pub fn ui<B: Backend>(f: &mut Frame, app: &mut App) {
     if let AppMode::DateInput = app.mode {
         render_date_input_popup(f, app);
     }
+    if let AppMode::Search = app.mode {
+        render_search_popup(f, app);
+    }
 }
 
 fn render_tasks(f: &mut Frame, app: &mut App, area: Rect) {
     let mut items = Vec::new();
-    for task in app.tasks.iter() {
+    let displayed_tasks = app.get_displayed_tasks();
+    for task in displayed_tasks.iter() {
         let (style, symbol) = if task.completed {
             (Style::default().fg(SURFACE2).add_modifier(Modifier::CROSSED_OUT), " ✔ ")
         } else {
@@ -155,11 +159,19 @@ fn render_tasks(f: &mut Frame, app: &mut App, area: Rect) {
         }
     }
 
+    let title = match app.mode {
+        AppMode::Search if !app.search_input.is_empty() => {
+            format!(" To-Do (Search: {}) ", app.search_input)
+        }
+        AppMode::Search => " To-Do (Search Mode) ".to_string(),
+        _ => " To-Do ".to_string(),
+    };
+
     let list = List::new(items)
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(" To-Do ")
+                .title(title)
                 .border_style(Style::default().fg(SURFACE1))
                 .title_style(Style::default().fg(LAVENDER)),
         )
@@ -189,6 +201,7 @@ fn render_footer(f: &mut Frame, area: Rect) {
             .into_iter()
             .chain(key!("a", ":add "))
             .chain(key!("d", ":delete "))
+            .chain(key!("/", ":search "))
             .chain(key!("+", ":zoom-in "))
             .chain(key!("-", ":zoom-out"))
             .collect::<Vec<_>>(),
@@ -218,6 +231,41 @@ fn render_input_popup(f: &mut Frame, app: &App) {
         .style(Style::default().fg(TEXT));
 
     f.render_widget(Clear, area); //this clears the background
+    f.render_widget(input_block, area);
+}
+
+fn render_date_input_popup(f: &mut Frame, app: &App) {
+    let area = centered_rect(60, 20, f.size());
+    let input_block = Paragraph::new(app.date_input.as_str())
+        .block(
+            Block::default()
+                .title(" Set Due Date ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(MAUVE))
+                .title_style(Style::default().fg(LAVENDER)),
+        )
+        .style(Style::default().fg(TEXT));
+
+    f.render_widget(Clear, area);
+    f.render_widget(input_block, area);
+}
+
+fn render_search_popup(f: &mut Frame, app: &App) {
+    let area = centered_rect(80, 20, f.size());
+    let search_help = "Search by: description, tags, priority (high/medium/low), status (completed/incomplete), due date";
+    let input_text = format!("{}\n\n{}", app.search_input, search_help);
+    
+    let input_block = Paragraph::new(input_text)
+        .block(
+            Block::default()
+                .title(" Search Tasks ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(MAUVE))
+                .title_style(Style::default().fg(LAVENDER)),
+        )
+        .style(Style::default().fg(TEXT));
+
+    f.render_widget(Clear, area);
     f.render_widget(input_block, area);
 }
 

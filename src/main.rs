@@ -59,11 +59,17 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
                     KeyCode::Down => app.next(),
                     KeyCode::Up => app.previous(),
                     KeyCode::Enter => app.toggle_completed(),
-                    KeyCode::Char('a') => app.mode = AppMode::Insert,
+                    KeyCode::Char('a') => {
+                        app.adding_subtask = false;
+                        app.mode = AppMode::Insert;
+                    },
                     KeyCode::Char('d') => app.delete_task(),
                     KeyCode::Char('p') => app.cycle_priority(),
                     KeyCode::Char('D') => app.mode = AppMode::DateInput,
-                    KeyCode::Char('s') => app.mode = AppMode::Insert,
+                    KeyCode::Char('s') => {
+                        app.adding_subtask = true;
+                        app.mode = AppMode::Insert;
+                    },
                     KeyCode::Char('/') => app.mode = AppMode::Search,
                     KeyCode::Char('+') => app.zoom_in(),
                     KeyCode::Char('-') => app.zoom_out(),
@@ -75,7 +81,10 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
                     KeyCode::Backspace => {
                         app.input.pop();
                     }
-                    KeyCode::Esc => app.mode = AppMode::Normal,
+                    KeyCode::Esc => {
+                        app.adding_subtask = false;
+                        app.mode = AppMode::Normal;
+                    },
                     _ => {}
                 },
                 AppMode::DateInput => match key.code {

@@ -18,6 +18,7 @@ pub struct App {
     pub date_input: String,
     pub search_input: String,
     pub margin: u16,
+    pub adding_subtask: bool,
 }
 
 impl App {
@@ -37,6 +38,7 @@ impl App {
             date_input: String::new(),
             search_input: String::new(),
             margin: 1,
+            adding_subtask: false,
         }
     }
 
@@ -50,35 +52,47 @@ impl App {
 
 
     pub fn next(&mut self) {
-        if self.tasks.is_empty() {
+        let displayed_tasks = self.get_displayed_tasks();
+        if displayed_tasks.is_empty() {
             return;
         }
-        let i = self.state.selected().map_or(0, |i| (i + 1) % self.tasks.len());
+        let i = self.state.selected().map_or(0, |i| (i + 1) % displayed_tasks.len());
         self.state.select(Some(i));
     }
 
     pub fn previous(&mut self) {
-        if self.tasks.is_empty() {
+        let displayed_tasks = self.get_displayed_tasks();
+        if displayed_tasks.is_empty() {
             return;
         }
-        let i = self.state.selected().map_or(0, |i| (i + self.tasks.len() - 1) % self.tasks.len());
+        let i = self.state.selected().map_or(0, |i| (i + displayed_tasks.len() - 1) % displayed_tasks.len());
         self.state.select(Some(i));
     }
 
     pub fn toggle_completed(&mut self) {
-        if let Some(task) = self.state.selected().and_then(|i| self.tasks.get_mut(i)) {
-            task.completed = !task.completed;
+        if let Some(selected_index) = self.state.selected() {
+            let displayed_tasks = self.get_displayed_tasks();
+            if let Some(selected_task) = displayed_tasks.get(selected_index) {
+                // Find the task in the main tasks vector by ID
+                if let Some(main_task) = self.tasks.iter_mut().find(|t| t.id == selected_task.id) {
+                    main_task.completed = !main_task.completed;
+                }
+            }
         }
     }
 
     pub fn cycle_priority(&mut self) {
-        if let Some(i) = self.state.selected() {
-            if let Some(task) = self.tasks.get_mut(i) {
-                task.priority = match task.priority {
-                    Priority::Low => Priority::Medium,
-                    Priority::Medium => Priority::High,
-                    Priority::High => Priority::Low,
-                };
+        if let Some(selected_index) = self.state.selected() {
+            let displayed_tasks = self.get_displayed_tasks();
+            if let Some(selected_task) = displayed_tasks.get(selected_index) {
+                // Find the task in the main tasks vector by ID
+                if let Some(main_task) = self.tasks.iter_mut().find(|t| t.id == selected_task.id) {
+                    main_task.priority = match main_task.priority {
+                        Priority::Low => Priority::Medium,
+                        Priority::Medium => Priority::High,
+                        Priority::High => Priority::Low,
+                    };
+                }
             }
         }
     }
@@ -88,87 +102,143 @@ impl App {
     }
 
     pub fn add_task(&mut self) {
-        let new_id = self.tasks.iter().map(|t| t.id).max().unwrap_or(0) + 1;
-        let due_date = parse_date_string(&self.input, Local::now(), Dialect::Us)
-            .ok()
-            .map(|date| date.format("%Y-%m-%d").to_string());
-        let tags = self
-            .input
-            .split_whitespace()
-            .filter(|word| word.starts_with('#'))
-            .map(|word| word.to_string())
-            .collect();
+        if self.adding_subtask {
+            self.add_sub_task();
+            self.adding_subtask = false;
+        } else {
+            let new_id = self.tasks.iter().map(|t| t.id).max().unwrap_or(0) + 1;
+            let due_date = parse_date_string(&self.input, Local::now(), Dialect::Us)
+                .ok()
+                .map(|date| date.format("%Y-%m-%d").to_string());
+            let tags = self
+                .input
+                .split_whitespace()
+                .filter(|word| word.starts_with('#'))
+                .map(|word| word.to_string())
+                .collect();
 
-        let new_task = Task {
-            id: new_id,
-            description: self.input.drain(..).collect(),
-            completed: false,
-            priority: Priority::Medium,
-            due_date,
-            sub_tasks: Box::new(Vec::new()),
-            tags,
-        };
-        self.tasks.push(new_task);
+            let new_task = Task {
+                id: new_id,
+                description: self.input.drain(..).collect(),
+                completed: false,
+                priority: Priority::Medium,
+                due_date,
+                sub_tasks: Box::new(Vec::new()),
+                tags,
+            };
+            self.tasks.push(new_task);
+        }
         self.mode = AppMode::Normal;
     }
 
     pub fn add_sub_task(&mut self) {
-        if let Some(i) = self.state.selected() {
-            if let Some(task) = self.tasks.get_mut(i) {
-                let new_id = task.sub_tasks.iter().map(|t| t.id).max().unwrap_or(0) + 1;
-                let due_date = parse_date_string(&self.input, Local::now(), Dialect::Us)
-                    .ok()
-                    .map(|date| date.format("%Y-%m-%d").to_string());
-                let tags = self
-                    .input
-                    .split_whitespace()
-                    .filter(|word| word.starts_with('#'))
-                    .map(|word| word.to_string())
-                    .collect();
+        if let Some(selected_index) = self.state.selected() {
+            let displayed_tasks = self.get_displayed_tasks();
+            if let Some(selected_task) = displayed_tasks.get(selected_index) {
+                // Find the task in the main tasks vector by ID
+                if let Some(main_task) = self.tasks.iter_mut().find(|t| t.id == selected_task.id) {
+                    let new_id = main_task.sub_tasks.iter().map(|t| t.id).max().unwrap_or(0) + 1;
+                    let due_date = parse_date_string(&self.input, Local::now(), Dialect::Us)
+                        .ok()
+                        .map(|date| date.format("%Y-%m-%d").to_string());
+                    let tags = self
+                        .input
+                        .split_whitespace()
+                        .filter(|word| word.starts_with('#'))
+                        .map(|word| word.to_string())
+                        .collect();
 
-                let new_task = Task {
-                    id: new_id,
-                    description: self.input.drain(..).collect(),
-                    completed: false,
-                    priority: Priority::Medium,
-                    due_date,
-                    sub_tasks: Box::new(Vec::new()),
-                    tags,
-                };
-                task.sub_tasks.push(new_task);
+                    let new_task = Task {
+                        id: new_id,
+                        description: self.input.drain(..).collect(),
+                        completed: false,
+                        priority: Priority::Medium,
+                        due_date,
+                        sub_tasks: Box::new(Vec::new()),
+                        tags,
+                    };
+                    main_task.sub_tasks.push(new_task);
+                }
             }
         }
         self.mode = AppMode::Normal;
     }
 
     pub fn set_due_date(&mut self) {
-        if let Some(i) = self.state.selected() {
-            if let Some(task) = self.tasks.get_mut(i) {
-                task.due_date = Some(self.date_input.drain(..).collect());
+        if let Some(selected_index) = self.state.selected() {
+            let displayed_tasks = self.get_displayed_tasks();
+            if let Some(selected_task) = displayed_tasks.get(selected_index) {
+                // Find the task in the main tasks vector by ID
+                if let Some(main_task) = self.tasks.iter_mut().find(|t| t.id == selected_task.id) {
+                    main_task.due_date = Some(self.date_input.drain(..).collect());
+                }
             }
         }
         self.mode = AppMode::Normal;
     }
 
     pub fn delete_task(&mut self) {
-        if let Some(i) = self.state.selected() {
-            self.tasks.remove(i);
-            if !self.tasks.is_empty() {
-                self.state.select(Some(i.min(self.tasks.len() - 1)));
-            } else {
-                self.state.select(None);
+        if let Some(selected_index) = self.state.selected() {
+            let displayed_tasks = self.get_displayed_tasks();
+            if let Some(selected_task) = displayed_tasks.get(selected_index) {
+                // Find and remove the task in the main tasks vector by ID
+                if let Some(main_index) = self.tasks.iter().position(|t| t.id == selected_task.id) {
+                    self.tasks.remove(main_index);
+                }
+                
+                // Update selection
+                let new_displayed_tasks = self.get_displayed_tasks();
+                if !new_displayed_tasks.is_empty() {
+                    self.state.select(Some(selected_index.min(new_displayed_tasks.len() - 1)));
+                } else {
+                    self.state.select(None);
+                }
             }
         }
     }
 
     pub fn filter_tasks(&self) -> Vec<Task> {
+        if self.search_input.is_empty() {
+            return self.tasks.clone();
+        }
+
+        let search_lower = self.search_input.to_lowercase();
         self.tasks
             .iter()
             .filter(|task| {
-                task.description.contains(&self.search_input)
-                    || task.tags.iter().any(|tag| tag.contains(&self.search_input))
+                // Filter by description (case-insensitive)
+                task.description.to_lowercase().contains(&search_lower)
+                    // Filter by tags (case-insensitive)
+                    || task.tags.iter().any(|tag| tag.to_lowercase().contains(&search_lower))
+                    // Filter by priority
+                    || match search_lower.as_str() {
+                        "high" | "h" => matches!(task.priority, Priority::High),
+                        "medium" | "med" | "m" => matches!(task.priority, Priority::Medium),
+                        "low" | "l" => matches!(task.priority, Priority::Low),
+                        _ => false,
+                    }
+                    // Filter by completion status
+                    || match search_lower.as_str() {
+                        "completed" | "done" | "finished" => task.completed,
+                        "incomplete" | "pending" | "todo" => !task.completed,
+                        _ => false,
+                    }
+                    // Filter by due date (if it exists)
+                    || task.due_date.as_ref().map_or(false, |date| date.contains(&search_lower))
+                    // Filter by subtasks content
+                    || task.sub_tasks.iter().any(|subtask| {
+                        subtask.description.to_lowercase().contains(&search_lower)
+                            || subtask.tags.iter().any(|tag| tag.to_lowercase().contains(&search_lower))
+                    })
             })
             .cloned()
             .collect()
+    }
+
+    pub fn get_displayed_tasks(&self) -> Vec<Task> {
+        match self.mode {
+            AppMode::Search if !self.search_input.is_empty() => self.filter_tasks(),
+            _ => self.tasks.clone(),
+        }
     }
 }
