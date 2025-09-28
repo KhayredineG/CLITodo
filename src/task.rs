@@ -3,11 +3,22 @@ use std::fs::{File, OpenOptions};
 use std::io::{self, BufReader, BufWriter};
 use std::path::Path;
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum Priority {
+    Low,
+    Medium,
+    High,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Task {
     pub id: usize,
     pub description: String,
     pub completed: bool,
+    pub priority: Priority,
+    pub due_date: Option<String>,
+    pub sub_tasks: Box<Vec<Task>>,
+    pub tags: Vec<String>,
 }
 
 pub fn load_tasks<P: AsRef<Path>>(path: P) -> io::Result<Vec<Task>> {

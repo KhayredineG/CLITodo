@@ -1,4 +1,6 @@
 use crate::app::{App, AppMode};
+use crate::task::Priority;
+use chrono::prelude::*;
 use ratatui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
@@ -17,6 +19,9 @@ const SURFACE2: Color = Color::Rgb(88, 91, 112);
 const SURFACE1: Color = Color::Rgb(69, 71, 90);
 const SURFACE0: Color = Color::Rgb(49, 50, 68);
 const CRUST: Color = Color::Rgb(17, 17, 27);
+const RED: Color = Color::Rgb(243, 139, 168);
+const YELLOW: Color = Color::Rgb(250, 179, 135);
+const GREEN: Color = Color::Rgb(166, 227, 161);
 
 pub fn ui<B: Backend>(f: &mut Frame, app: &mut App) {
     // Create a global background
@@ -56,20 +61,99 @@ pub fn ui<B: Backend>(f: &mut Frame, app: &mut App) {
     if let AppMode::Insert = app.mode {
         render_input_popup(f, app);
     }
+    if let AppMode::DateInput = app.mode {
+        render_date_input_popup(f, app);
+    }
 }
 
 fn render_tasks(f: &mut Frame, app: &mut App, area: Rect) {
-    let items: Vec<ListItem> = app.tasks.iter().map(|task| {
+    let mut items = Vec::new();
+    for task in app.tasks.iter() {
         let (style, symbol) = if task.completed {
             (Style::default().fg(SURFACE2).add_modifier(Modifier::CROSSED_OUT), " ✔ ")
         } else {
             (Style::default().fg(TEXT), " ❯ ")
         };
-        ListItem::new(Line::from(vec![
+        let priority_style = Style::default().fg(match task.priority {
+            Priority::High => RED,
+            Priority::Medium => YELLOW,
+            Priority::Low => GREEN,
+        });
+        let priority_symbol = match task.priority {
+            Priority::High => " ▲",
+            Priority::Medium => " ●",
+            Priority::Low => " ▼",
+        };
+
+        let mut spans = vec![
             Span::styled(symbol, Style::default().fg(MAUVE)),
             Span::raw(task.description.clone()),
-        ])).style(style)
-    }).collect();
+            Span::styled(priority_symbol, priority_style),
+        ];
+
+        if let Some(due_date) = &task.due_date {
+            let due_date_style = if Local::now().format("%Y-%m-%d").to_string() > *due_date {
+                Style::default().fg(RED)
+            } else {
+                Style::default().fg(SUBTEXT1)
+            };
+            spans.push(Span::styled(format!(" (due: {})", due_date), due_date_style));
+        }
+
+        if !task.tags.is_empty() {
+            spans.push(Span::raw(" "));
+            for tag in task.tags.iter() {
+                spans.push(Span::styled(tag, Style::default().fg(MAUVE)));
+                spans.push(Span::raw(" "));
+            }
+        }
+
+        items.push(ListItem::new(Line::from(spans)).style(style));
+
+        for sub_task in task.sub_tasks.iter() {
+            let (style, symbol) = if sub_task.completed {
+                (Style::default().fg(SURFACE2).add_modifier(Modifier::CROSSED_OUT), " ✔ ")
+            } else {
+                (Style::default().fg(TEXT), " ❯ ")
+            };
+            let priority_style = Style::default().fg(match sub_task.priority {
+                Priority::High => RED,
+                Priority::Medium => YELLOW,
+                Priority::Low => GREEN,
+            });
+            let priority_symbol = match sub_task.priority {
+                Priority::High => " ▲",
+                Priority::Medium => " ●",
+                Priority::Low => " ▼",
+            };
+
+            let mut spans = vec![
+                Span::raw("  ↳ "),
+                Span::styled(symbol, Style::default().fg(MAUVE)),
+                Span::raw(sub_task.description.clone()),
+                Span::styled(priority_symbol, priority_style),
+            ];
+
+            if let Some(due_date) = &sub_task.due_date {
+                let due_date_style = if Local::now().format("%Y-%m-%d").to_string() > *due_date {
+                    Style::default().fg(RED)
+                } else {
+                    Style::default().fg(SUBTEXT1)
+                };
+                spans.push(Span::styled(format!(" (due: {})", due_date), due_date_style));
+            }
+
+            if !sub_task.tags.is_empty() {
+                spans.push(Span::raw(" "));
+                for tag in sub_task.tags.iter() {
+                    spans.push(Span::styled(tag, Style::default().fg(MAUVE)));
+                    spans.push(Span::raw(" "));
+                }
+            }
+
+            items.push(ListItem::new(Line::from(spans)).style(style));
+        }
+    }
 
     let list = List::new(items)
         .block(

@@ -1,46 +1,44 @@
-# Plan: Terminal-based To-Do List
+# Plan: Advanced To-Do List Features
 
-This plan outlines the steps to create a modern, elegant, and interactive terminal-based to-do list application in Rust.
+This plan outlines the next phases of development for the terminal-based to-do list, focusing on advanced features and UI/UX enhancements.
 
-## Phase 1: Core Functionality & Interactivity
-- [x] **State Management:** Implement state for the task list to handle selection and scrolling.
-- [x] **Task Creation:**
-    - [x] Implement an "input mode" to capture user input for new tasks.
-    - [x] Add a keybinding (e.g., `n`) to enter input mode.
-    - [x] Add the new task to the list.
-- [x] **Task Completion:**
-    - [x] Add a keybinding (e.g., `d` or `space`) to toggle the `completed` status of the selected task.
-- [x] **Task Deletion:**
-    - [x] Add a keybinding (e.g., `x`) to delete the selected task.
-- [x] **Persistence:**
-    - [x] Load tasks from `tasks.json` on application startup.
-    - [x] Save all changes to `tasks.json` upon quitting.
+## Phase 1: Core Feature Enhancements
+- [x] **Task Priorities:**
+    - [x] Add a `priority` field to the `Task` struct (e.g., High, Medium, Low).
+    - [x] Implement a keybinding (e.g., `p`) to cycle through priority levels for the selected task.
+    - [x] Visually indicate task priority in the UI (e.g., with color-coded symbols).
+- [x] **Due Dates:**
+    - [x] Add an `Option<String>` `due_date` field to the `Task` struct.
+    - [x] Create a new "date input" mode, triggered by a keybinding (e.g., `D`).
+    - [x] Display the due date next to the task description.
+    - [x] Highlight overdue tasks in the UI.
+- [x] **Subtasks:**
+    - [x] Modify the `Task` struct to include a `Vec<Task>` for subtasks.
+    - [x] Implement keybindings to add a subtask to the selected task (e.g., `s`).
+    - [x] Create a way to view and interact with subtasks (e.g., by expanding/collapsing them).
 
-## Phase 2: UI/UX Enhancement - The "Modern & Elegant" Look
-- [x] **Layout:**
-    - [x] Design a two-panel layout: one for the task list and a footer for help text.
-    - [x] The help footer should dynamically show available keybindings based on the current mode.
-- [x] **Styling:**
-    - [x] Style the task list to visually differentiate between pending and completed tasks (e.g., using color and strikethrough text).
-    - [x] Add a distinct style for the currently selected task to make it stand out.
-    - [x] Implement a clean and visually appealing popup or overlay for the "new task" input mode.
-- [x] **Branding:**
-    - [x] Add a styled title/header to the application.
-    - [x] Choose a modern color palette and apply it consistently across all UI components.
+## Phase 2: Advanced Features
+- [x] **Natural Language Processing (NLP) for Task Creation:**
+    - [x] Integrate a lightweight NLP library (e.g., `chrono-english` for dates).
+    - [x] When adding a task, parse the input string for due dates (e.g., "buy milk tomorrow").
+    - [x] Automatically populate the `due_date` field based on the parsed input.
+- [x] **Tags for Organization:**
+    - [x] Add a `tags: Vec<String>` field to the `Task` struct.
+    - [x] Allow users to add tags to tasks in the input/edit mode (e.g., "buy milk #shopping #urgent").
+    - [x] Display tags alongside the task description.
+- [ ] **Search/Filter Functionality:**
+    - [ ] Implement a "search mode" triggered by a keybinding (e.g., `/`).
+    - [ ] Allow users to filter the task list by description, priority, due date, or tags.
+    - [ ] Display the current search query in the UI.
 
-## Phase 3: Advanced Features & Polish
-- [x] **Task Editing:**
-    - [x] Add a keybinding (e.g., `e`) to enter an "edit mode" for the selected task.
-    - [x] Allow the user to modify the task's title.
-- [x] **Confirmation Dialogs:**
-    - [x] Implement a confirmation prompt before deleting a task to prevent accidental data loss.
-- [x] **Error Handling:**
-    - [x] Display user-friendly error messages if `tasks.json` is malformed or cannot be read/written.
-
-## Phase 4: Code Refinement & Finalization
-- [x] **Refactoring:**
-    - [x] Refactor UI components into smaller, reusable functions.
-    - [x] Improve the organization of the `app.rs` state and logic.
-- [x] **Review & Test:**
-    - [x] Conduct a final review of the code for clarity and efficiency.
-    - [x] Perform thorough testing of all features and keybindings.
+## Phase 3: UI/UX and Polish
+- [ ] **Themes and Custom Colors:**
+    - [ ] Create a `Theme` struct to hold the application's color palette.
+    - [ ] Implement a way to switch between different themes (e.g., via a command-line flag or a configuration file).
+    - [ ] Allow users to define their own custom themes.
+- [ ] **Focus Mode:**
+    - [ ] Add a "focus mode" that hides completed tasks and other non-essential UI elements.
+    - [ ] Implement a keybinding (e.g., `f`) to toggle focus mode.
+- [ ] **Confirmation Dialogs:**
+    - [ ] Add a confirmation prompt before performing destructive actions (e.g., deleting all completed tasks).
+    - [ ] Create a generic confirmation dialog that can be reused for different actions.

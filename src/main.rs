@@ -61,6 +61,10 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
                     KeyCode::Enter => app.toggle_completed(),
                     KeyCode::Char('a') => app.mode = AppMode::Insert,
                     KeyCode::Char('d') => app.delete_task(),
+                    KeyCode::Char('p') => app.cycle_priority(),
+                    KeyCode::Char('D') => app.mode = AppMode::DateInput,
+                    KeyCode::Char('s') => app.mode = AppMode::Insert,
+                    KeyCode::Char('/') => app.mode = AppMode::Search,
                     KeyCode::Char('+') => app.zoom_in(),
                     KeyCode::Char('-') => app.zoom_out(),
                     _ => {}
@@ -72,6 +76,23 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
                         app.input.pop();
                     }
                     KeyCode::Esc => app.mode = AppMode::Normal,
+                    _ => {}
+                },
+                AppMode::DateInput => match key.code {
+                    KeyCode::Enter => app.set_due_date(),
+                    KeyCode::Char(c) => app.date_input.push(c),
+                    KeyCode::Backspace => {
+                        app.date_input.pop();
+                    }
+                    KeyCode::Esc => app.mode = AppMode::Normal,
+                    _ => {}
+                },
+                AppMode::Search => match key.code {
+                    KeyCode::Enter | KeyCode::Esc => app.mode = AppMode::Normal,
+                    KeyCode::Char(c) => app.search_input.push(c),
+                    KeyCode::Backspace => {
+                        app.search_input.pop();
+                    }
                     _ => {}
                 },
             }
