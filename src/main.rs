@@ -1,103 +1,110 @@
-use clap::Parser;
-use serde::{Deserialize, Serialize};
-use std::fs::{File, OpenOptions};
-use std::io::{self, BufReader, BufWriter};
-use std::path::Path;
+use crate::{
+    app::{App, AppMode},
+    ui::ui,
+};
+use crossterm::{
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
+use ratatui::{
+    backend::{Backend, CrosstermBackend},
+    Terminal,
+};
+use std::{error::Error, io};
 
-#[derive(Parser)]
-#[command(name = "todo", version = "0.1.0", about = "A simple todo app")]
-struct Cli {
-    #[command(subcommand)]
-    command: Commands,
+mod app;
+mod task;
+mod ui;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // setup terminal
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    // create app and run it
+    let app = App::new();
+    let res = run_app(&mut terminal, app);
+
+    // restore terminal
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
+
+    if let Err(err) = res {
+        println!("{:?}", err)
+    }
+
+    Ok(())
 }
 
-#[derive(Parser, Debug)]
-enum Commands {
-    Add {
-        description: Vec<String>,
-    },
-    List,
-    Done {
-        id: usize,
-    },
-}
+fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
+    loop {
+        terminal.draw(|f| ui::<B>(f, &mut app))?;
 
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct Task {
-    id: usize,
-    description: String,
-    completed: bool,
-}
-
-fn main() -> io::Result<()> {
-    let cli = Cli::parse();
-    let tasks = load_tasks("tasks.json")?;
-
-    match cli.command {
-        Commands::Add { description } => {
-            let description = description.join(" ");
-            add_task("tasks.json", description)?;
+        if let Event::Key(key) = event::read()? {
+            match app.mode {
+                AppMode::Normal => match key.code {
+                    KeyCode::Char('q') => {
+                        app.save();
+                        return Ok(());
+                    }
+                    KeyCode::Down => app.next(),
+                    KeyCode::Up => app.previous(),
+                    KeyCode::Enter => app.toggle_completed(),
+                    KeyCode::Char('a') => {
+                        app.adding_subtask = false;
+                        app.mode = AppMode::Insert;
+                    },
+                    KeyCode::Char('d') => app.delete_task(),
+                    KeyCode::Char('p') => app.cycle_priority(),
+                    KeyCode::Char('D') => app.mode = AppMode::DateInput,
+                    KeyCode::Char('s') => {
+                        app.adding_subtask = true;
+                        app.mode = AppMode::Insert;
+                    },
+                    KeyCode::Char('/') => app.mode = AppMode::Search,
+                    KeyCode::Char('+') => app.zoom_in(),
+                    KeyCode::Char('-') => app.zoom_out(),
+                    _ => {}
+                },
+                AppMode::Insert => match key.code {
+                    KeyCode::Enter => app.add_task(),
+                    KeyCode::Char(c) => app.input.push(c),
+                    KeyCode::Backspace => {
+                        app.input.pop();
+                    }
+                    KeyCode::Esc => {
+                        app.adding_subtask = false;
+                        app.mode = AppMode::Normal;
+                    },
+                    _ => {}
+                },
+                AppMode::DateInput => match key.code {
+                    KeyCode::Enter => app.set_due_date(),
+                    KeyCode::Char(c) => app.date_input.push(c),
+                    KeyCode::Backspace => {
+                        app.date_input.pop();
+                    }
+                    KeyCode::Esc => app.mode = AppMode::Normal,
+                    _ => {}
+                },
+                AppMode::Search => match key.code {
+                    KeyCode::Enter | KeyCode::Esc => app.mode = AppMode::Normal,
+                    KeyCode::Char(c) => app.search_input.push(c),
+                    KeyCode::Backspace => {
+                        app.search_input.pop();
+                    }
+                    _ => {}
+                },
+            }
         }
-        Commands::List => list_tasks(&tasks),
-        Commands::Done { id } => {
-            complete_task("tasks.json", id)?;
-        }
     }
-
-    Ok(())
-}
-
-fn load_tasks<P: AsRef<Path>>(path: P) -> io::Result<Vec<Task>> {
-    if !path.as_ref().exists() {
-        return Ok(Vec::new());
-    }
-    let file = File::open(path)?;
-    let reader = BufReader::new(file);
-    let tasks = serde_json::from_reader(reader).unwrap_or_else(|_| Vec::new());
-    Ok(tasks)
-}
-
-fn save_tasks<P: AsRef<Path>>(path: P, tasks: &[Task]) -> io::Result<()> {
-    let file = OpenOptions::new().write(true).create(true).truncate(true).open(path)?;
-    let writer = BufWriter::new(file);
-    serde_json::to_writer_pretty(writer, tasks)?;
-    Ok(())
-}
-
-fn add_task<P: AsRef<Path>>(path: P, description: String) -> io::Result<()> {
-    let mut tasks = load_tasks(path.as_ref())?;
-    let new_id = tasks.iter().map(|t| t.id).max().unwrap_or(0) + 1;
-    let new_task = Task {
-        id: new_id,
-        description,
-        completed: false,
-    };
-    tasks.push(new_task);
-    save_tasks(path, &tasks)?;
-    println!("Added task {}.", new_id);
-    Ok(())
-}
-
-fn list_tasks(tasks: &[Task]) {
-    if tasks.is_empty() {
-        println!("No tasks yet!");
-    } else {
-        for task in tasks {
-            let status = if task.completed { "[x]" } else { "[ ]" };
-            println!("{} {} - {}", status, task.id, task.description);
-        }
-    }
-}
-
-fn complete_task<P: AsRef<Path>>(path: P, id: usize) -> io::Result<()> {
-    let mut tasks = load_tasks(path.as_ref())?;
-    if let Some(task) = tasks.iter_mut().find(|t| t.id == id) {
-        task.completed = true;
-        save_tasks(path, &tasks)?;
-        println!("Completed task {}.", id);
-    } else {
-        println!("Task with ID {} not found.", id);
-    }
-    Ok(())
 }
